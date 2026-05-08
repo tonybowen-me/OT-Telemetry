@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Nalco OT Cyber-Physical Validator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Sans-serif for body text; monospace only for instrument tags and data values */
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: #0d0f14;
+      color: #c8d0e0;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+    .mono { font-family: 'Courier New', monospace; }
+
+    /* ── Header ── */
+    header {
+      background: #161b27;
+      border-bottom: 1px solid #2a3045;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .facility { font-size: 11px; color: #6a7a9a; letter-spacing: 1px; margin-bottom: 3px; }
+    .title    { font-family: 'Courier New', monospace; font-size: 17px; font-weight: bold; color: #e2e8f0; letter-spacing: 2px; }
+
+    .badge {
+      font-size: 11px;
+      padding: 5px 14px;
+      border-radius: 4px;
+      border: 1px solid;
+      letter-spacing: 1px;
+      font-weight: 600;
+      transition: all 0.4s;
+    }
+    .badge-nominal { color: #48bb78; border-color: #48bb78; }
+    .badge-anomaly { color: #f6ad55; border-color: #f6ad55; }
+
+    /* ── Layout ── */
+    main { padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #7a8aaa;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      margin-top: 28px;
+    }
+
+    /* ── Alert banner ── */
+    .alert-banner {
+      background: #1f0e0e;
+      border: 1px solid #c53030;
+      border-radius: 5px;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fc8181;
+      margin-bottom: 4px;
+      display: none;
+    }
+    .alert-banner.visible { display: block; }
+
+    /* ── Command state bar ── */
+    .state-bar {
+      background: #161b27;
+      border: 1px solid #2a3045;
+      border-radius: 6px;
+      padding: 16px 22px;
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .state-item { display: flex; flex-direction: column; gap: 5px; }
+    .state-lbl  { font-size: 11px; font-weight: 600; color: #7a8aaa; letter-spacing: 1px; text-transform: uppercase; }
+    .state-val  { font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; }
+    .on         { color: #48bb78; }
+    .off        { color: #5a6a7a; }
+    .mode-normal { color: #63b3ed; }
+    .mode-recirc { color: #b794f4; }
+
+    /* ── Sensor grids ── */
+    .sensor-grid { display: grid; gap: 12px; }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .sensor-card {
+      background: #161b27;
+      border: 1px solid #2a3045;
+      border-radius: 6px;
+      padding: 16px 18px;
+      transition: border-color 0.4s;
+    }
+    .sensor-card.warn  { border-color: #d69e2e; background: #181508; }
+    .sensor-card.alert { border-color: #e53e3e; background: #180808; }
+
+    .s-tag   { font-family: 'Courier New', monospace; font-size: 11px; color: #7a8aaa; letter-spacing: 2px; margin-bottom: 4px; }
+    .s-name  { font-size: 13px; color: #9aa5b8; margin-bottom: 10px; }
+    .s-value { font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; color: #e2e8f0; }
+    .s-unit  { font-size: 13px; color: #7a8aaa; margin-left: 4px; }
+    .s-class {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-top: 10px;
+      display: inline-block;
+      letter-spacing: 1px;
+    }
+    .primary-cls   { background: #0d1f2d; color: #4a9fd0; }
+    .secondary-cls { background: #1a1535; color: #9f7aea; }
+
+    /* ── Controls ── */
+    .controls {
+      background: #161b27;
+      border: 1px solid #2a3045;
+      border-radius: 6px;
+      padding: 18px 22px;
+    }
+    .ctrl-label { font-size: 11px; font-weight: 600; color: #7a8aaa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+
+    button {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 8px 18px;
+      border-radius: 5px;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-scenario { background: transparent; color: #f6ad55; border-color: #f6ad55; }
+    .btn-scenario:hover  { background: #f6ad5520; }
+    .btn-scenario.active { background: #f6ad55;   color: #0d0f14; }
+
+    .btn-clear { background: transparent; color: #68d391; border-color: #68d391; }
+    .btn-clear:hover { background: #68d39120; }
+
+    .btn-mode { background: transparent; color: #63b3ed; border-color: #63b3ed; }
+    .btn-mode:hover  { background: #63b3ed20; }
+    .btn-mode.active { background: #63b3ed;   color: #0d0f14; }
+
+    /* ── Scenario explanation panel ── */
+    .explain-panel {
+      background: #0f1320;
+      border: 1px solid #2a3045;
+      border-top: 2px solid #f6ad55;
+      border-radius: 6px;
+      padding: 18px 20px;
+      margin-top: 16px;
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+    .explain-panel.visible { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .explain-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f6ad55;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .explain-rows { display: flex; flex-direction: column; gap: 14px; }
+    .explain-row  { display: grid; grid-template-columns: 110px 1fr; gap: 16px; align-items: start; }
+
+    .explain-key {
+      font-size: 11px;
+      font-weight: 700;
+      color: #7a8aaa;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding-top: 2px;
+    }
+
+    .explain-val { font-size: 13px; color: #a0b0c8; line-height: 1.65; }
+    .explain-val strong { color: #e2e8f0; }
+
+    .detect-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 3px;
+      margin-right: 6px;
+      margin-top: 4px;
+      border: 1px solid #3a4560;
+      background: #1a2035;
+      color: #7a8aaa;
+    }
+    .detect-note { font-size: 12px; color: #6a7a8a; margin-top: 4px; }
+
+    /* ── Layer 1 panel ── */
+    .layer1-panel {
+      background: #161b27;
+      border: 1px solid #2a3045;
+      border-radius: 6px;
+      padding: 18px 22px;
+    }
+    .layer1-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .layer1-title { font-size: 12px; font-weight: 600; color: #7a8aaa; letter-spacing: 1px; }
+
+    .verdict-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 4px;
+      border: 1px solid;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    .verdict-pass    { color: #48bb78; border-color: #48bb78; }
+    .verdict-fail    { color: #fc8181; border-color: #e53e3e; }
+    .verdict-pending { color: #5a6a7a; border-color: #3a4560; }
+
+    .l1-rules { display: flex; flex-direction: column; gap: 8px; }
+
+    .l1-rule {
+      display: grid;
+      grid-template-columns: 210px 56px 1fr;
+      gap: 16px;
+      align-items: start;
+      padding: 10px 12px;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      transition: all 0.3s;
+    }
+    .l1-rule.rule-fail { background: #180e0e; border-color: #6a1a1a; }
+    .l1-rule.rule-pass { background: #0c1209; }
+    .l1-rule.rule-na   { opacity: 0.45; }
+
+    .rule-id   { font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; color: #9aabbd; letter-spacing: 1px; padding-top: 2px; }
+    .rule-stat { font-size: 11px; font-weight: 700; letter-spacing: 1px; padding-top: 2px; }
+    .stat-pass { color: #48bb78; }
+    .stat-fail { color: #fc8181; }
+    .stat-na   { color: #5a6a7a; }
+
+    .rule-text { font-size: 13px; color: #7a8aaa; line-height: 1.6; }
+    .rule-text.is-fail { color: #b0c0d4; }
+    .rule-violation { font-size: 12px; color: #e07070; margin-top: 6px; line-height: 1.6; }
+
+    /* ── Footer tick ── */
+    .tick { font-family: 'Courier New', monospace; font-size: 11px; color: #3a4a5a; text-align: right; margin-top: 20px; }
+
+    /* ── Layer 2 ── */
+    .layer2-panel {
+      background: #0d1520;
+      border: 1px solid #1e3050;
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+    .layer2-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .layer2-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #5a8abf; }
+
+    .verdict-warn { color: #f6c343; border-color: #c49a0a; }
+
+    .l2-sensors { display: flex; flex-direction: column; gap: 10px; }
+    .l2-sensor {
+      display: grid;
+      grid-template-columns: 70px 1fr 56px 70px;
+      gap: 14px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      transition: background 0.4s, border-color 0.4s;
+    }
+    .l2-sensor.l2-pass { background: #0c1209; border-color: #1a2a14; }
+    .l2-sensor.l2-warn { background: #16120a; border-color: #4a3a08; }
+    .l2-sensor.l2-fail { background: #180e0e; border-color: #6a1a1a; }
+
+    .l2-tag  { font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #9aabbd; }
+    .l2-score-col { display: flex; flex-direction: column; gap: 5px; }
+    .l2-bar-track { height: 6px; background: #1a2535; border-radius: 3px; overflow: hidden; }
+    .l2-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.6s ease, background 0.4s; }
+    .l2-bar-pass { background: #48bb78; }
+    .l2-bar-warn { background: #f6c343; }
+    .l2-bar-fail { background: #fc8181; }
+    .l2-name-trend { font-size: 12px; color: #7a8aaa; display: flex; gap: 8px; align-items: center; }
+    .l2-trend-degrading { color: #fc8181; }
+    .l2-trend-recovering { color: #48bb78; }
+    .l2-trend-stable { color: #5a6a7a; }
+
+    .l2-score-val { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; text-align: right; }
+    .l2-score-pass { color: #48bb78; }
+    .l2-score-warn { color: #f6c343; }
+    .l2-score-fail { color: #fc8181; }
+
+    .l2-pred-obs { font-size: 11px; color: #5a6a7a; line-height: 1.7; }
+
+    .escalate-flag {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: #1a0a1a;
+      border: 1px solid #7a1a7a;
+      border-radius: 5px;
+      font-size: 12px;
+      color: #d080d0;
+      font-weight: 600;
+      letter-spacing: 1px;
+      display: none;
+    }
+    .escalate-flag.visible { display: block; }
+
+    /* ── Layer 3 ── */
+    .layer3-panel {
+      background: #0e0d1a;
+      border: 1px solid #2a1e50;
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+    .layer3-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .layer3-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #7a5abf; }
+
+    .l3-standby {
+      font-size: 13px;
+      color: #3a3a5a;
+      padding: 12px 0;
+      letter-spacing: 1px;
+    }
+
+    .l3-top {
+      background: #13102a;
+      border: 1px solid #4a2a8a;
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .l3-top-label { font-size: 10px; letter-spacing: 2px; color: #7a5abf; margin-bottom: 6px; }
+    .l3-top-name  { font-size: 20px; font-weight: 700; color: #c0a0ff; margin-bottom: 4px; }
+    .l3-top-conf  { font-size: 13px; color: #8a7aaa; margin-bottom: 12px; }
+    .l3-conf-bar-track { height: 8px; background: #1a1530; border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
+    .l3-conf-bar-fill  { height: 100%; border-radius: 4px; background: #7a40e0; transition: width 0.6s ease; }
+    .l3-evidence { display: flex; flex-direction: column; gap: 6px; }
+    .l3-ev-item  { font-size: 12px; color: #8a9aaa; line-height: 1.5; padding-left: 12px; border-left: 2px solid #3a2060; }
+
+    .l3-candidates { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+    .l3-candidate {
+      display: grid;
+      grid-template-columns: 180px 1fr 52px;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 4px;
+      background: #0c0b18;
+      border: 1px solid #1a1535;
+    }
+    .l3-candidate.l3-top-candidate { border-color: #4a2a8a; background: #13102a; }
+    .l3-cand-name { font-size: 12px; color: #7a6a9a; }
+    .l3-cand-name.top { color: #c0a0ff; font-weight: 600; }
+    .l3-cand-bar-track { height: 4px; background: #1a1530; border-radius: 2px; overflow: hidden; }
+    .l3-cand-bar-fill  { height: 100%; border-radius: 2px; background: #5a30b0; transition: width 0.6s ease; }
+    .l3-cand-conf { font-family: 'Courier New', monospace; font-size: 12px; color: #7a6a9a; text-align: right; }
+    .l3-cand-conf.top { color: #c0a0ff; }
+
+    .l3-summary {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #5a4a7a;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="facility">FACILITY: WT-DEMO-01 &nbsp;/&nbsp; T-101 CHEMICAL DOSING LOOP</div>
+    <div class="title">OT CYBER-PHYSICAL VALIDATOR</div>
+  </div>
+  <div id="badge" class="badge badge-nominal">NOMINAL</div>
+</header>
+
+<main>
+
+  <div id="alert-banner" class="alert-banner"></div>
+
+  <!-- Command state -->
+  <div class="section-label">Command State</div>
+  <div class="state-bar">
+    <div class="state-item">
+      <span class="state-lbl">MODE</span>
+      <span id="s-mode" class="state-val mode-normal">—</span>
+    </div>
+    <div class="state-item">
+      <span class="state-lbl">P-101 PUMP</span>
+      <span id="s-pump" class="state-val">—</span>
+    </div>
+    <div class="state-item">
+      <span class="state-lbl">V-101 VALVE</span>
+      <span id="s-valve" class="state-val">—</span>
+    </div>
+    <div class="state-item">
+      <span class="state-lbl">V-102 BYPASS</span>
+      <span id="s-bypass" class="state-val">—</span>
+    </div>
+    <div class="state-item">
+      <span class="state-lbl">P-102 DOSING</span>
+      <span id="s-dosing" class="state-val">—</span>
+    </div>
+  </div>
+
+  <!-- Primary telemetry -->
+  <div class="section-label">Primary Telemetry — Falsifiable</div>
+  <div class="sensor-grid grid-4">
+    <div class="sensor-card" id="c-flow">
+      <div class="s-tag">FT-101</div>
+      <div class="s-name">Flow Rate</div>
+      <div><span class="s-value" id="v-flow">—</span><span class="s-unit">L/min</span></div>
+      <div class="s-class primary-cls">PRIMARY</div>
+    </div>
+    <div class="sensor-card" id="c-level">
+      <div class="s-tag">LT-101</div>
+      <div class="s-name">Tank Level</div>
+      <div><span class="s-value" id="v-level">—</span><span class="s-unit">%</span></div>
+      <div class="s-class primary-cls">PRIMARY</div>
+    </div>
+    <div class="sensor-card" id="c-pressure">
+      <div class="s-tag">PT-101</div>
+      <div class="s-name">Downstream Pressure</div>
+      <div><span class="s-value" id="v-pressure">—</span><span class="s-unit">bar</span></div>
+      <div class="s-class primary-cls">PRIMARY</div>
+    </div>
+    <div class="sensor-card" id="c-conc">
+      <div class="s-tag">AT-101</div>
+      <div class="s-name">Chlorine Residual</div>
+      <div><span class="s-value" id="v-conc">—</span><span class="s-unit">mg/L</span></div>
+      <div class="s-class primary-cls">PRIMARY</div>
+    </div>
+  </div>
+
+  <!-- Secondary telemetry -->
+  <div class="section-label">Secondary Telemetry — Validators</div>
+  <div class="sensor-grid grid-2">
+    <div class="sensor-card" id="c-power">
+      <div class="s-tag">PM-101</div>
+      <div class="s-name">Pump Power Draw</div>
+      <div><span class="s-value" id="v-power">—</span><span class="s-unit">kW</span></div>
+      <div class="s-class secondary-cls">SECONDARY</div>
+    </div>
+    <div class="sensor-card" id="c-cond">
+      <div class="s-tag">CT-101</div>
+      <div class="s-name">Downstream Conductivity</div>
+      <div><span class="s-value" id="v-cond">—</span><span class="s-unit">&#956;S/cm</span></div>
+      <div class="s-class secondary-cls">SECONDARY</div>
+    </div>
+  </div>
+
+  <!-- Layer 1 -->
+  <div class="section-label">Layer 1 — Invariant Checker</div>
+  <div class="layer1-panel">
+    <div class="layer1-header">
+      <span class="layer1-title">DETERMINISTIC INVARIANTS — NO ML</span>
+      <span id="l1-verdict" class="verdict-badge verdict-pending">—</span>
+    </div>
+    <div class="l1-rules" id="l1-rules">
+      <div style="font-size:13px;color:#7a8aaa;">Waiting for first tick...</div>
+    </div>
+  </div>
+
+  <!-- Layer 2 -->
+  <div class="section-label">Layer 2 — Residual Scorer</div>
+  <div class="layer2-panel">
+    <div class="layer2-header">
+      <span class="layer2-title">ROLLING TRUST SCORES — PER SENSOR</span>
+      <span id="l2-verdict" class="verdict-badge verdict-pending">—</span>
+    </div>
+    <div class="l2-sensors" id="l2-sensors">
+      <div style="font-size:13px;color:#7a8aaa;">Waiting for first tick...</div>
+    </div>
+    <div id="l2-escalate" class="escalate-flag">
+      &#9650; ESCALATING TO LAYER 3 — sustained trust failure detected
+    </div>
+  </div>
+
+  <!-- Layer 3 -->
+  <div class="section-label">Layer 3 — Counterfactual Engine</div>
+  <div class="layer3-panel">
+    <div class="layer3-header">
+      <span class="layer3-title">RULE-BASED HYPOTHESIS SCORING — ON DEMAND</span>
+      <span id="l3-verdict" class="verdict-badge verdict-pending">STANDBY</span>
+    </div>
+    <div id="l3-body">
+      <div class="l3-standby">AWAITING LAYER 2 ESCALATION</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="section-label">Scenario Injection</div>
+  <div class="controls">
+    <div class="ctrl-label">ANOMALY SCENARIOS</div>
+    <div class="btn-row">
+      <button class="btn-scenario" id="btn-spoof"  onclick="inject('sensor_spoof')">SENSOR SPOOF</button>
+      <button class="btn-scenario" id="btn-drift"  onclick="inject('slow_drift')">SLOW DRIFT</button>
+      <button class="btn-scenario" id="btn-pump"   onclick="inject('pump_failure')">PUMP FAILURE</button>
+      <button class="btn-scenario" id="btn-replay" onclick="inject('replay_attack')">REPLAY ATTACK</button>
+      <button class="btn-clear"                    onclick="clearScenario()">CLEAR</button>
+    </div>
+    <div class="ctrl-label">OPERATING MODE</div>
+    <div class="btn-row">
+      <button class="btn-mode active" id="btn-normal" onclick="setMode('normal')">NORMAL</button>
+      <button class="btn-mode"        id="btn-recirc" onclick="setMode('recirculation')">RECIRCULATION</button>
+    </div>
+
+    <!-- Scenario explanation panel -->
+    <div id="explain-panel" class="explain-panel">
+      <div id="explain-title" class="explain-title"></div>
+      <div class="explain-rows">
+        <div class="explain-row">
+          <span class="explain-key">ATTACK</span>
+          <span class="explain-val" id="explain-attack"></span>
+        </div>
+        <div class="explain-row">
+          <span class="explain-key">WATCH FOR</span>
+          <span class="explain-val" id="explain-watch"></span>
+        </div>
+        <div class="explain-row">
+          <span class="explain-key">DETECTION</span>
+          <span class="explain-val" id="explain-detect"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tick" id="tick">TICK —</div>
+
+</main>
+
+<script>
+  const SCENARIO_EXPLAIN = {
+    sensor_spoof: {
+      title: 'SENSOR SPOOF',
+      attack: '<strong>V-101 (main valve) has been closed.</strong> FT-101 (flow transmitter) is being falsified to report ~95 L/min — normal operating flow. Real flow has dropped to leakage (~1 L/min). The attacker is hiding the valve closure.',
+      watch:  '<strong>PM-101 power draw</strong> will decay toward idle (~0.08 kW) over the next few ticks as true hydraulic load falls. FT-101 still reports full flow. The contradiction between reported flow and falling power is the tell.',
+      detect: [
+        { label: 'LAYER 1 — FLOW CONTINUITY', note: 'V-101 closed but FT-101 exceeds leakage threshold' },
+      ],
+    },
+    slow_drift: {
+      title: 'SLOW DRIFT ATTACK',
+      attack: '<strong>AT-101 (chlorine residual analyser) reading is being incremented +0.02 mg/L per tick.</strong> Real concentration remains at setpoint (~2.0 mg/L). The manipulation is designed to be invisible to any single-point check — it looks like normal process variation.',
+      watch:  '<strong>AT-101</strong> will slowly climb above 2.0 mg/L over the next ~10–20 ticks. <strong>CT-101 conductivity</strong> (which tracks real concentration with a lag) will stay flat — revealing that the reported concentration has no physical basis.',
+      detect: [
+        { label: 'LAYER 2 — RESIDUAL SCORER', note: 'Sustained AT-101 residual growing each tick; secondary envelope (CT-101) contradicts' },
+      ],
+    },
+    pump_failure: {
+      title: 'PUMP FAILURE',
+      attack: '<strong>P-101 is commanded ON but has mechanically failed.</strong> No sensor reading is falsified — this is a real physical fault. The command says the pump is running; the physics says it is not.',
+      watch:  '<strong>PM-101 power draw</strong> immediately drops to idle (~0.08 kW). <strong>FT-101 flow</strong> and <strong>PT-101 pressure</strong> will decay over several ticks as the hydraulic system loses drive. All three move together, which is what makes it physically consistent.',
+      detect: [
+        { label: 'LAYER 1 — ENERGY CONSISTENCY', note: 'Pump commanded ON but PM-101 at idle — command/telemetry mismatch' },
+      ],
+    },
+    replay_attack: {
+      title: 'REPLAY ATTACK',
+      attack: '<strong>All primary and secondary readings are frozen to a snapshot taken at the moment the attack began.</strong> Tick number and timestamp continue advancing, but every sensor value is identical each tick. An operator watching individual readings would see nothing unusual.',
+      watch:  '<strong>P-102 dosing is still active</strong> — AT-101 concentration should be rising as chemical is injected, but it will not move. <strong>CT-101 conductivity</strong> should track concentration changes but will also stay flat. The frozen values are the tell.',
+      detect: [
+        { label: 'LAYER 2 — RESIDUAL SCORER',    note: 'Concentration flat despite active dosing; residual grows against expected rise' },
+        { label: 'LAYER 3 — COUNTERFACTUAL',      note: 'Replay hypothesis: if dosing were truly active, AT-101 and CT-101 would be rising' },
+      ],
+    },
+  };
+
+  const SCENARIO_DESCRIPTIONS = {
+    sensor_spoof:  'SENSOR SPOOF — FT-101 FALSIFIED WHILE V-101 CLOSED',
+    slow_drift:    'SLOW DRIFT ATTACK — AT-101 READING MANIPULATED UPWARD',
+    pump_failure:  'PUMP FAILURE — P-101 COMMANDED ON, MECHANICALLY DEAD',
+    replay_attack: 'REPLAY ATTACK — PRIMARY + SECONDARY READINGS FROZEN',
+  };
+
+  const SCENARIO_CARDS = {
+    sensor_spoof:  ['c-flow'],
+    slow_drift:    ['c-conc'],
+    pump_failure:  ['c-power'],
+    replay_attack: ['c-flow', 'c-pressure', 'c-conc', 'c-power', 'c-cond'],
+  };
+
+  const BTN_MAP = {
+    sensor_spoof: 'btn-spoof',
+    slow_drift:   'btn-drift',
+    pump_failure: 'btn-pump',
+    replay_attack:'btn-replay',
+  };
+
+  let activeScenario = null;
+
+  async function inject(name) {
+    await fetch(`/scenario/${name}`, { method: 'POST' });
+    activeScenario = name;
+    refreshButtons();
+    showExplain(name);
+  }
+
+  async function clearScenario() {
+    await fetch('/scenario', { method: 'DELETE' });
+    activeScenario = null;
+    refreshButtons();
+    hideExplain();
+  }
+
+  function showExplain(name) {
+    const info = SCENARIO_EXPLAIN[name];
+    if (!info) return;
+    document.getElementById('explain-title').textContent  = info.title;
+    document.getElementById('explain-attack').innerHTML   = info.attack;
+    document.getElementById('explain-watch').innerHTML    = info.watch;
+    document.getElementById('explain-detect').innerHTML   = info.detect
+      .map(d => `<span class="detect-pill">${d.label}</span><br><span class="detect-note">${d.note}</span>`)
+      .join('<br style="margin-bottom:6px">');
+    document.getElementById('explain-panel').classList.add('visible');
+  }
+
+  function hideExplain() {
+    document.getElementById('explain-panel').classList.remove('visible');
+  }
+
+  async function setMode(mode) {
+    await fetch(`/mode/${mode}`, { method: 'POST' });
+  }
+
+  function refreshButtons() {
+    Object.values(BTN_MAP).forEach(id => document.getElementById(id).classList.remove('active'));
+    if (activeScenario && BTN_MAP[activeScenario])
+      document.getElementById(BTN_MAP[activeScenario]).classList.add('active');
+  }
+
+  function cmd(val) {
+    return `<span class="${val ? 'on' : 'off'}">${val ? 'ON' : 'OFF'}</span>`;
+  }
+
+  function renderLayer1(layer1) {
+    if (!layer1 || !Array.isArray(layer1.all_results)) return;
+
+    const verdictEl = document.getElementById('l1-verdict');
+    if (!verdictEl) return;
+
+    const isFail = layer1.verdict === 'fail';
+    verdictEl.textContent = isFail ? 'FAIL' : 'PASS';
+    verdictEl.className   = 'verdict-badge ' + (isFail ? 'verdict-fail' : 'verdict-pass');
+
+    const STATUS_CLASS = { 'pass': 'stat-pass', 'fail': 'stat-fail', 'not_applicable': 'stat-na' };
+    const STATUS_TEXT  = { 'pass': 'PASS',      'fail': 'FAIL',      'not_applicable': 'N/A'  };
+    const RULE_CLASS   = { 'pass': 'rule-pass', 'fail': 'rule-fail', 'not_applicable': 'rule-na' };
+
+    const rulesEl = document.getElementById('l1-rules');
+    if (!rulesEl) return;
+
+    rulesEl.innerHTML = layer1.all_results.map(r => {
+      const status    = r.status || 'not_applicable';
+      const ruleClass = RULE_CLASS[status]  || 'rule-na';
+      const statClass = STATUS_CLASS[status] || 'stat-na';
+      const statText  = STATUS_TEXT[status]  || 'N/A';
+
+      const detail = status === 'fail'
+        ? `<div class="rule-text is-fail">${r.explanation || ''}</div>
+           <div class="rule-violation">Expected: ${r.expected || ''}<br>Observed: ${r.observed || ''}</div>`
+        : `<div class="rule-text">${r.explanation || ''}</div>`;
+
+      return `<div class="l1-rule ${ruleClass}">
+        <span class="rule-id">${r.rule_id || ''}</span>
+        <span class="rule-stat ${statClass}">${statText}</span>
+        <div>${detail}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderLayer2(layer2) {
+    if (!layer2 || !Array.isArray(layer2.sensors)) return;
+
+    const verdictEl = document.getElementById('l2-verdict');
+    if (!verdictEl) return;
+
+    const VERDICT_CLASS = { pass: 'verdict-pass', warn: 'verdict-warn', fail: 'verdict-fail' };
+    verdictEl.textContent = layer2.verdict.toUpperCase();
+    verdictEl.className   = 'verdict-badge ' + (VERDICT_CLASS[layer2.verdict] || 'verdict-pending');
+
+    const TREND_SYMBOL = { degrading: '&#8595;', recovering: '&#8593;', stable: '&#8212;' };
+    const TREND_CLASS  = { degrading: 'l2-trend-degrading', recovering: 'l2-trend-recovering', stable: 'l2-trend-stable' };
+
+    const sensorsEl = document.getElementById('l2-sensors');
+    if (!sensorsEl) return;
+
+    sensorsEl.innerHTML = layer2.sensors.map(s => {
+      const verdict     = s.verdict || 'pass';
+      const barClass    = 'l2-bar-' + verdict;
+      const scoreClass  = 'l2-score-' + verdict;
+      const sensorClass = 'l2-' + verdict;
+      const barWidth    = (s.trust_score * 100).toFixed(1) + '%';
+      const trendSym    = TREND_SYMBOL[s.trend]  || '&#8212;';
+      const trendCls    = TREND_CLASS[s.trend]   || 'l2-trend-stable';
+
+      return `<div class="l2-sensor ${sensorClass}">
+        <span class="l2-tag">${s.tag}</span>
+        <div class="l2-score-col">
+          <div class="l2-name-trend">
+            ${s.name}
+            <span class="${trendCls}">${trendSym}</span>
+          </div>
+          <div class="l2-bar-track">
+            <div class="l2-bar-fill ${barClass}" style="width:${barWidth}"></div>
+          </div>
+        </div>
+        <span class="l2-score-val ${scoreClass}">${s.trust_score.toFixed(3)}</span>
+        <div class="l2-pred-obs">
+          pred&nbsp;${s.predicted}<br>
+          obs&nbsp;&nbsp;${s.observed}
+        </div>
+      </div>`;
+    }).join('');
+
+    const escalateEl = document.getElementById('l2-escalate');
+    if (escalateEl) {
+      escalateEl.classList.toggle('visible', layer2.escalate_to_layer3 === true);
+    }
+  }
+
+  function renderLayer3(layer3) {
+    if (!layer3) return;
+    const verdictEl = document.getElementById('l3-verdict');
+    const bodyEl    = document.getElementById('l3-body');
+    if (!verdictEl || !bodyEl) return;
+
+    if (!layer3.triggered) {
+      verdictEl.textContent = 'STANDBY';
+      verdictEl.className   = 'verdict-badge verdict-pending';
+      bodyEl.innerHTML      = '<div class="l3-standby">AWAITING LAYER 2 ESCALATION</div>';
+      return;
+    }
+
+    verdictEl.textContent = 'ACTIVE';
+    verdictEl.className   = 'verdict-badge verdict-fail';
+
+    const top = layer3.candidates && layer3.candidates[0];
+    const topName = layer3.top_hypothesis;
+
+    const topHtml = top ? `
+      <div class="l3-top">
+        <div class="l3-top-label">TOP CANDIDATE</div>
+        <div class="l3-top-name">${top.label}</div>
+        <div class="l3-top-conf">${(top.confidence * 100).toFixed(0)}% confidence</div>
+        <div class="l3-conf-bar-track">
+          <div class="l3-conf-bar-fill" style="width:${(top.confidence*100).toFixed(1)}%"></div>
+        </div>
+        <div class="l3-evidence">
+          ${(top.evidence || []).map(e => `<div class="l3-ev-item">${e}</div>`).join('')}
+        </div>
+      </div>` : '';
+
+    const candidatesHtml = (layer3.candidates || []).map(h => {
+      const isTop = h.name === (top && top.name);
+      return `<div class="l3-candidate ${isTop ? 'l3-top-candidate' : ''}">
+        <span class="l3-cand-name ${isTop ? 'top' : ''}">${h.label}</span>
+        <div class="l3-cand-bar-track">
+          <div class="l3-cand-bar-fill" style="width:${(h.confidence*100).toFixed(1)}%"></div>
+        </div>
+        <span class="l3-cand-conf ${isTop ? 'top' : ''}">${(h.confidence*100).toFixed(0)}%</span>
+      </div>`;
+    }).join('');
+
+    bodyEl.innerHTML = `
+      ${topHtml}
+      <div class="l3-candidates">${candidatesHtml}</div>
+      <div class="l3-summary">${layer3.summary || ''}</div>
+    `;
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch('/telemetry');
+      if (!res.ok) return;
+      const d = await res.json();
+
+      const t = d.telemetry;
+      const p = t.primary, s = t.secondary, c = t.command_state;
+
+      // Command state
+      document.getElementById('s-pump').innerHTML   = cmd(c.pump_commanded);
+      document.getElementById('s-valve').innerHTML  = cmd(c.valve_open);
+      document.getElementById('s-bypass').innerHTML = cmd(c.bypass_open);
+      document.getElementById('s-dosing').innerHTML = cmd(c.dosing_active);
+
+      const modeEl = document.getElementById('s-mode');
+      modeEl.textContent = t.operating_mode.toUpperCase();
+      modeEl.className   = `state-val ${t.operating_mode === 'normal' ? 'mode-normal' : 'mode-recirc'}`;
+
+      document.getElementById('btn-normal').classList.toggle('active', t.operating_mode === 'normal');
+      document.getElementById('btn-recirc').classList.toggle('active', t.operating_mode === 'recirculation');
+
+      // Sensor values
+      document.getElementById('v-flow').textContent     = p.flow_rate.toFixed(1);
+      document.getElementById('v-level').textContent    = p.tank_level.toFixed(1);
+      document.getElementById('v-pressure').textContent = p.downstream_pressure.toFixed(3);
+      document.getElementById('v-conc').textContent     = p.chemical_concentration.toFixed(3);
+      document.getElementById('v-power').textContent    = s.pump_power_draw.toFixed(3);
+      document.getElementById('v-cond').textContent     = s.downstream_conductivity.toFixed(1);
+
+      // Sensor card highlights — Layer 1 violations take priority over scenario colouring
+      const allCards = ['c-flow','c-level','c-pressure','c-conc','c-power','c-cond'];
+      allCards.forEach(id => document.getElementById(id).classList.remove('warn', 'alert'));
+
+      const anomaly = t.active_anomaly;
+      if (anomaly && anomaly !== 'none') {
+        (SCENARIO_CARDS[anomaly] || []).forEach(id => document.getElementById(id).classList.add('warn'));
+      }
+      if (d.layer1) {
+        const RULE_CARDS = {
+          FLOW_CONTINUITY:    ['c-flow'],
+          PRESSURE_CAUSALITY: ['c-pressure'],
+          DOSING_FLOW_SAFETY: ['c-conc', 'c-flow'],
+          ENERGY_CONSISTENCY: ['c-power'],
+          TEMPORAL_ORDERING:  ['c-conc'],
+        };
+        d.layer1.violations.forEach(v => {
+          (RULE_CARDS[v.rule_id] || []).forEach(id => document.getElementById(id).classList.add('alert'));
+        });
+      }
+
+      // Header badge
+      const badge  = document.getElementById('badge');
+      const banner = document.getElementById('alert-banner');
+      const hasViolation = d.layer1 && d.layer1.verdict === 'fail';
+
+      const hasL2Fail    = d.layer2 && d.layer2.verdict === 'fail';
+      const hasL2Warn    = d.layer2 && d.layer2.verdict === 'warn';
+      const hasEscalate  = d.layer2 && d.layer2.escalate_to_layer3;
+
+      if (hasViolation) {
+        badge.textContent = 'LAYER 1 VIOLATION';
+        badge.className   = 'badge badge-anomaly';
+        const ruleNames = d.layer1.violations.map(v => v.rule_id).join(', ');
+        banner.textContent = '⚠ INVARIANT FAILURE — ' + ruleNames;
+        banner.classList.add('visible');
+      } else if (hasEscalate) {
+        badge.textContent = 'ESCALATING TO L3';
+        badge.className   = 'badge badge-anomaly';
+        banner.textContent = '⚠ LAYER 2 — SUSTAINED TRUST FAILURE — ESCALATING TO LAYER 3';
+        banner.classList.add('visible');
+      } else if (hasL2Fail) {
+        badge.textContent = 'LAYER 2 ALERT';
+        badge.className   = 'badge badge-anomaly';
+        const failedTags = d.layer2.sensors.filter(s => s.verdict === 'fail').map(s => s.tag).join(', ');
+        banner.textContent = '⚠ RESIDUAL FAILURE — ' + failedTags + ' trust score critical';
+        banner.classList.add('visible');
+      } else if (hasL2Warn) {
+        badge.textContent = 'L2 DEGRADING';
+        badge.className   = 'badge badge-anomaly';
+        const warnTags = d.layer2.sensors.filter(s => s.verdict === 'warn').map(s => s.tag).join(', ');
+        banner.textContent = '⚠ RESIDUAL WARNING — ' + warnTags + ' trust score degrading';
+        banner.classList.add('visible');
+      } else if (anomaly && anomaly !== 'none') {
+        badge.textContent = 'ANOMALY ACTIVE';
+        badge.className   = 'badge badge-anomaly';
+        banner.textContent = '⚠ ' + (SCENARIO_DESCRIPTIONS[anomaly] || anomaly.toUpperCase());
+        banner.classList.add('visible');
+      } else {
+        badge.textContent = 'NOMINAL';
+        badge.className   = 'badge badge-nominal';
+        banner.classList.remove('visible');
+      }
+
+      // Layer 1 panel
+      renderLayer1(d.layer1);
+
+      // Layer 2 panel
+      renderLayer2(d.layer2);
+
+      // Layer 3 panel
+      renderLayer3(d.layer3);
+
+      document.getElementById('tick').textContent =
+        `TICK ${t.tick_number}  /  ${new Date(t.timestamp).toISOString()}`;
+
+    } catch (e) { console.error('Poll error:', e); }
+  }
+
+  setInterval(poll, 1000);
+  poll();
+</script>
+
+</body>
+</html>
