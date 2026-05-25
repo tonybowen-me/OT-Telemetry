@@ -520,7 +520,7 @@
   <!-- Controls -->
   <div class="section-label">Scenario Injection</div>
   <div class="controls">
-    <div class="ctrl-label">ANOMALY SCENARIOS</div>
+    <div class="ctrl-label">SCENARIOS</div>
     <div class="btn-row">
       <button class="btn-scenario" id="btn-spoof"  onclick="inject('sensor_spoof')">SENSOR SPOOF</button>
       <button class="btn-scenario" id="btn-drift"  onclick="inject('slow_drift')">SLOW DRIFT</button>
@@ -574,7 +574,7 @@
       attack: '<strong>AT-101 (chlorine residual analyser) reading is being incremented +0.02 mg/L per tick.</strong> Real concentration remains at setpoint (~2.0 mg/L). The manipulation is designed to be invisible to any single-point check — it looks like normal process variation.',
       watch:  '<strong>AT-101</strong> will slowly climb above 2.0 mg/L over the next ~10–20 ticks. <strong>CT-101 conductivity</strong> (which tracks real concentration with a lag) will stay flat — revealing that the reported concentration has no physical basis.',
       detect: [
-        { label: 'LAYER 2 — RESIDUAL SCORER', note: 'Sustained AT-101 residual growing each tick; secondary envelope (CT-101) contradicts' },
+        { label: 'LAYER 2 — RESIDUAL SCORER', note: 'Sustained AT-101 residual growing each tick; secondary envelope (CT-101) contradicts. Reported chlorine increase is not corroborated by expected downstream conductivity response, dosing behaviour, hydraulic flow conditions, or expected temporal process evolution.' },
       ],
     },
     pump_failure: {
@@ -591,7 +591,7 @@
       watch:  '<strong>P-102 dosing is still active</strong> — AT-101 concentration should be rising as chemical is injected, but it will not move. <strong>CT-101 conductivity</strong> should track concentration changes but will also stay flat. The frozen values are the tell.',
       detect: [
         { label: 'LAYER 2 — RESIDUAL SCORER',    note: 'Concentration flat despite active dosing; residual grows against expected rise' },
-        { label: 'LAYER 3 — COUNTERFACTUAL',      note: 'Replay hypothesis: if dosing were truly active, AT-101 and CT-101 would be rising' },
+        { label: 'LAYER 3 — COUNTERFACTUAL',      note: 'Replay hypothesis: if dosing were truly active, AT-101 and CT-101 would be rising. Although timestamps and control execution continue advancing, downstream process variables fail to evolve within expected causal and temporal bounds for an actively dosing system.' },
       ],
     },
   };
