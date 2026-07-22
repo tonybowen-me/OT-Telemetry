@@ -1,0 +1,18 @@
+name: Incomplete data (DoS on level sensor)
+class: incomplete_data
+description: A DoS on PLC1 drops the tank-level tag for a 3-hour window under otherwise
+  nominal conditions; the value required to resolve tank state is missing.
+attack:
+  type: dos
+  target: PLC1
+  tag: TANK
+  start_hour: 2
+  duration_hours: 3
+expected_pilot: uncertain
+expected_sigma: no_alert
+narrative: Required telemetry is missing. PILOT refuses to guess and returns uncertain
+  for the affected window rather than asserting valid or violation.
+id: dos_incomplete
+step_seconds: 300
+steps: 73
+tank_max_level: 6.5

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PILOT × DHALSIM — OT Telemetry Integrity Demo</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>PILOT × DHALSIM</h1>
+    <p class="tagline">Causal telemetry integrity vs. a correlational baseline — on data from a standalone DHALSIM water-distribution lab.</p>
+  </header>
+
+  <main>
+    <section id="scenario-bar">
+      <label for="scenario">Scenario</label>
+      <select id="scenario"></select>
+      <span id="scenario-class" class="pill"></span>
+    </section>
+
+    <p id="scenario-desc" class="desc"></p>
+
+    <section id="verdicts">
+      <div class="verdict-card" id="pilot-card">
+        <h2>PILOT</h2>
+        <div class="status" id="pilot-status">—</div>
+        <div class="sub" id="pilot-sub"></div>
+      </div>
+      <div class="verdict-card" id="sigma-card">
+        <h2>Correlational baseline (Sigma)</h2>
+        <div class="status" id="sigma-status">—</div>
+        <div class="sub" id="sigma-sub"></div>
+      </div>
+    </section>
+
+    <section id="comparison-box">
+      <h3>Why they differ</h3>
+      <p id="comparison"></p>
+    </section>
+
+    <section class="chart-wrap">
+      <h3>Tank level — actual (physical truth) vs reported (what SCADA sees)</h3>
+      <canvas id="levelChart" height="110"></canvas>
+    </section>
+
+    <section class="chart-wrap">
+      <h3>Downstream pressure — actual vs reported (J39)</h3>
+      <canvas id="pressureChart" height="90"></canvas>
+    </section>
+
+    <div class="two-col">
+      <section id="explanations-box">
+        <h3>PILOT explanation</h3>
+        <ul id="explanations"></ul>
+        <h4>Operational findings</h4>
+        <ul id="findings"></ul>
+      </section>
+
+      <section id="evidence-box">
+        <h3>Root cause &amp; layers</h3>
+        <div id="rootcause"></div>
+        <h4>Layer 1 — invariants</h4>
+        <table id="invariants"><tbody></tbody></table>
+        <h4>Layer 2 — sensor trust</h4>
+        <table id="trust"><tbody></tbody></table>
+        <h4>Sigma rules matched</h4>
+        <ul id="sigma-rules"></ul>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <span>Physics from <a href="https://github.com/Critical-Infrastructure-Systems-Lab/DHALSIM" target="_blank" rel="noopener">DHALSIM</a> minitown (EPANET/WNTR). Datasets pre-recorded; the app runs no simulator.</span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

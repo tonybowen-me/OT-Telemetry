@@ -1,0 +1,9 @@
+output/
+__pycache__/
+*.pyc
+temp.bin
+temp.inp
+temp.rpt
+.pytest_cache/
+*.egg-info/
+.venv/
