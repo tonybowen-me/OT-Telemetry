@@ -1,0 +1,12 @@
+name: Normal operation
+class: valid
+description: Minitown runs under nominal demand with honest telemetry.
+attack: null
+expected_pilot: valid
+expected_sigma: no_alert
+narrative: Baseline. Reported telemetry matches physical reality; every PILOT invariant
+  holds and the correlational baseline stays quiet.
+id: normal
+step_seconds: 300
+steps: 73
+tank_max_level: 6.5
