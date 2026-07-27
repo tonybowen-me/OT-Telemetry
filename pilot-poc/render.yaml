@@ -1,0 +1,15 @@
+# Free-tier Render deployment. The service is stateless: it serves pre-recorded
+# DHALSIM datasets bundled in the repo and runs no simulator at runtime.
+services:
+  - type: web
+    name: pilot-dhalsim-demo
+    runtime: python
+    plan: free
+    rootDir: pilot-poc
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"

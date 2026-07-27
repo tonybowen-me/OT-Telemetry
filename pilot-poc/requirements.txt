@@ -1,0 +1,5 @@
+# Runtime dependencies for the deployed web app (no simulator).
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+pydantic==2.13.4
+PyYAML==6.0.2

@@ -1,0 +1,22 @@
+name: Falsified telemetry (concealment MITM on tank level)
+class: falsified_telemetry
+description: The SAME demand surge as the operational scenario, but a DHALSIM concealment_mitm
+  freezes the reported TANK level at 3.0 m on the wire. SCADA never sees the tank
+  draining toward empty.
+attack:
+  type: concealment_mitm
+  target: PLC1
+  tag: TANK
+  start_hour: 2
+  conceal_level: 3.0
+expected_pilot: violation
+expected_sigma: no_alert
+narrative: 'The money shot. Reported tank level is flat and in-band, so the Sigma
+  rules never fire even though the real tank is emptying. PILOT compares the reported
+  level against the change implied by tank inflow and demand (mass balance) and against
+  the still-truthful pressures, and flags a causal violation: a flat level is impossible
+  while the network keeps drawing water.'
+id: concealment_mitm
+step_seconds: 300
+steps: 73
+tank_max_level: 6.5

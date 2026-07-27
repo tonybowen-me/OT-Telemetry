@@ -1,0 +1,15 @@
+name: Operational issue (demand surge / burst main)
+class: operational_issue
+description: A large HONEST demand surge from hour 2 draws the tank down and depresses
+  downstream pressure. No telemetry is falsified.
+attack: null
+expected_pilot: valid
+expected_sigma: alert
+narrative: A genuine physical event with honest telemetry. Correlational rules alert
+  on the low tank level / low pressure. PILOT confirms the state is physically consistent
+  (valid) and raises a separate operational finding -- it is not a falsified-data
+  violation.
+id: operational_demand_surge
+step_seconds: 300
+steps: 73
+tank_max_level: 6.5
