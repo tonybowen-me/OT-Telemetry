@@ -102,3 +102,31 @@ def test_live_scenario_name_reflects_state():
     assert "no attack" in live._scenario_name({"condition": "normal", "attack": "none"})
     assert "concealment MITM" in live._scenario_name(
         {"condition": "surge", "attack": "concealment_mitm"})
+
+
+def _sweep_verdicts(condition: str, attack: str, window: int = 48) -> set[str]:
+    """Steady-state verdict at EVERY phase of the looping trajectory."""
+    u = Utility(tick_seconds=0.0, history=window + 4)
+    u.set_condition(condition)
+    if attack != "none":
+        u.set_attack(attack)
+    for _ in range(window + 2):          # fill a full window with this state
+        u.advance()
+    n = u.status()["steps"]
+    seen = set()
+    for _ in range(n):                   # one full loop
+        u.advance()
+        rep = _frames(u.scada_window(window))
+        tru = _frames(u.truth_window(window))
+        seen.add(comparison.evaluate_frames(rep, tru, "live", "live").pilot_status)
+    return seen
+
+
+def test_steady_state_verdicts_do_not_flicker_across_the_whole_loop():
+    # regression: the concealment verdict must not drop back to VALID while the
+    # attack is armed (previously happened when the window slid past a flat-empty
+    # tank phase). Sweep every phase of the loop for each state.
+    assert _sweep_verdicts("normal", "none") == {"valid"}
+    assert _sweep_verdicts("surge", "none") == {"valid"}
+    assert _sweep_verdicts("surge", "concealment_mitm") == {"violation"}
+    assert _sweep_verdicts("normal", "dos") == {"uncertain"}
