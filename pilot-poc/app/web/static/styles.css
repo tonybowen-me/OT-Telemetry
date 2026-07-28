@@ -26,6 +26,29 @@ select {
   color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
 }
 .desc { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+.muted { color: var(--muted); }
+header a { color: var(--accent); text-decoration: none; }
+code { background: #0a0f16; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
+
+.live-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; color: #fff;
+  background: var(--violation); padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+  margin-left: 8px; animation: blink 1.6s infinite;
+}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+.lab-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  max-width: 1080px; margin: 16px auto 0; padding: 10px 16px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}
+.lab-banner .spacer { flex: 1; }
+.lab-banner .chip { color: var(--muted); background: #0a0f16; border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
+.lab-banner .chip b { color: var(--text); }
+.conn { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.conn.ok { background: var(--valid); box-shadow: 0 0 8px var(--valid); }
+.conn.bad { background: var(--violation); box-shadow: 0 0 8px var(--violation); }
+main { max-width: 1080px; }
 
 #verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .verdict-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }

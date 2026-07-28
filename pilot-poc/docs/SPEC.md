@@ -13,19 +13,40 @@ Prove the reference-doc thesis on data from an independent OT lab:
 
 ## Non-goals
 
-- No live DHALSIM/Mininet/MiniCPS at runtime (the lab is offline/pre-recorded).
+- No Mininet/MiniCPS at runtime (that layer needs root; not free-tier friendly).
+  The hydraulics are pre-baked from EPANET/WNTR; nothing solves hydraulics live.
 - No ML in the reasoning path — everything is deterministic and auditable.
 - No real plant/customer telemetry; no database, auth, or multi-tenancy.
 
-## The lab (separate from the app)
+## Two-app architecture
 
-`datasets/lab/generate_datasets.py` runs the DHALSIM `minitown` topology through
-EPANET/WNTR and writes, per scenario:
+The demo is two independent services:
+
+1. **DHALSIM Water Utility** (`lab/`) — a standalone OT process. `build_trajectories.py`
+   bakes the DHALSIM `minitown` physics (EPANET/WNTR) into `data/trajectory.json`;
+   `simulator.py` streams it on a live clock and applies DHALSIM-style attacks
+   (concealment MITM / DoS) to the SCADA-visible view; `service.py` exposes the
+   SCADA feed (`/api/scada`) and an operator HMI + attacker console. It has no
+   knowledge of PILOT.
+2. **PILOT** (`app/`) — a separate service. `live.py` subscribes to the utility's
+   SCADA feed (only), normalises it to canonical frames, and the engines validate
+   it live. It reaches the utility over HTTP only; the utility never imports PILOT.
+
+The utility publishes `/api/truth` (physical ground truth) purely for its own HMI
+overlay — PILOT never fetches it into the engines.
+
+## The offline lab (recorded scenarios)
+
+For a deterministic, lab-free demo and for tests, `datasets/lab/generate_datasets.py`
+runs the same DHALSIM `minitown` topology through EPANET/WNTR and writes, per
+scenario:
 
 - `ground_truth.csv` — true physical state (never visible to an attacker).
 - `reported.csv` — what SCADA / a correlational tool sees after a DHALSIM-style
   network attack manipulates telemetry on the wire.
 - `meta.yaml` — scenario metadata + declared expected outcomes.
+
+These back PILOT's `/recorded` view; the live path (`/`) uses the utility instead.
 
 ## Three telemetry views (kept distinct)
 
