@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DHALSIM Water Utility &mdash; Minitown SCADA</title>
+  <link rel="stylesheet" href="/static/hmi.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>Minitown Water Utility</h1>
+        <p class="sub">DHALSIM lab &middot; live SCADA / HMI &middot; <span class="muted">application 1 of 2 &mdash; the OT process</span></p>
+      </div>
+    </div>
+    <div class="clock" id="clock">&mdash;</div>
+  </header>
+
+  <div class="note">
+    This is a <strong>standalone water-OT process</strong> (DHALSIM Minitown topology, EPANET/WNTR physics). It streams live and knows nothing about PILOT.
+    The only thing it publishes is its <code>/api/scada</code> feed &mdash; what a historian/SCADA server sees. PILOT runs as a separate app and consumes that feed.
+  </div>
+
+  <main>
+    <section class="hmi">
+      <h2>Operator HMI <span class="tag">what the control room sees</span></h2>
+      <div class="gauges">
+        <div class="gauge tank">
+          <div class="tank-shell"><div class="tank-fill" id="tankFill"></div></div>
+          <div class="gauge-label">Tank level</div>
+          <div class="gauge-value" id="tankVal">&mdash;</div>
+        </div>
+        <div class="stack">
+          <div class="pump" id="pump1"><span class="pin"></span> PUMP 1 <b id="pump1v">&mdash;</b></div>
+          <div class="pump" id="pump2"><span class="pin"></span> PUMP 2 <b id="pump2v">&mdash;</b></div>
+          <div class="reading">Inflow to tank <b id="inflow">&mdash;</b></div>
+          <div class="reading">System demand <b id="demand">&mdash;</b></div>
+          <div class="reading">Pressure J39 <b id="pJ39">&mdash;</b></div>
+          <div class="reading">Pressure J156 <b id="pJ156">&mdash;</b></div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="hmiChart"></canvas></div>
+      <label class="reveal">
+        <input type="checkbox" id="revealTruth" /> Overlay physical ground truth (demo X-ray &mdash; not visible to real operators)
+      </label>
+    </section>
+
+    <section class="console">
+      <h2>Attacker / process console <span class="tag">arm a condition or attack, live</span></h2>
+
+      <div class="group">
+        <div class="group-title">Physical demand</div>
+        <div class="btns" id="condBtns">
+          <button data-cond="normal" class="btn">Nominal demand</button>
+          <button data-cond="surge" class="btn">Demand surge / burst main</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Network attack on the SCADA link</div>
+        <div class="btns" id="atkBtns">
+          <button data-atk="none" class="btn">No attack</button>
+          <button data-atk="concealment_mitm" class="btn danger">Concealment MITM (freeze tank level)</button>
+          <button data-atk="dos" class="btn danger">DoS (drop tank sensor)</button>
+        </div>
+      </div>
+
+      <div class="state">
+        <div>Condition: <b id="stCond">&mdash;</b></div>
+        <div>Attack armed: <b id="stAtk">&mdash;</b></div>
+      </div>
+
+      <p class="hint" id="hint"></p>
+
+      <div class="handoff">
+        Watching this with the PILOT app open? Arm <b>Demand surge</b>, then <b>Concealment MITM</b>:
+        this HMI stays green (the frozen level looks normal) while PILOT &mdash; seeing only this SCADA feed &mdash; flips to <b>VIOLATION</b>.
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/hmi.js"></script>
+</body>
+</html>

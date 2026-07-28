@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PILOT — live telemetry integrity</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>PILOT <span class="live-badge" id="liveBadge">LIVE</span></h1>
+    <p class="tagline">Causal telemetry integrity, validating a <strong>separate</strong> DHALSIM water utility in real time &mdash; <span class="muted">application 2 of 2</span>. <a href="/recorded">recorded scenarios &rarr;</a></p>
+  </header>
+
+  <div id="lab-banner" class="lab-banner">
+    <span class="conn" id="connDot"></span>
+    <span id="connText">connecting to utility&hellip;</span>
+    <span class="spacer"></span>
+    <span class="chip">utility condition: <b id="labCond">&mdash;</b></span>
+    <span class="chip">attack on SCADA link: <b id="labAtk">&mdash;</b></span>
+  </div>
+
+  <p class="desc" id="feed-note">
+    PILOT subscribes only to the utility's <code>/api/scada</code> feed &mdash; the same values a historian sees. It never receives the plant's physical ground truth.
+    To arm an attack, open the <b>utility HMI</b> (the other app) and use its attacker console; PILOT reacts here automatically.
+  </p>
+
+  <main>
+    <section id="verdicts">
+      <div class="verdict-card" id="pilot-card">
+        <h2>PILOT (causal)</h2>
+        <div class="status" id="pilot-status">&mdash;</div>
+        <div class="sub" id="pilot-sub"></div>
+      </div>
+      <div class="verdict-card" id="sigma-card">
+        <h2>Correlational baseline (Sigma)</h2>
+        <div class="status" id="sigma-status">&mdash;</div>
+        <div class="sub" id="sigma-sub"></div>
+      </div>
+    </section>
+
+    <section id="comparison-box">
+      <h3>Why they differ</h3>
+      <p id="comparison"></p>
+    </section>
+
+    <section class="chart-wrap">
+      <h3>Tank level &mdash; reported (what PILOT sees) vs actual (physical truth, demo overlay)</h3>
+      <canvas id="levelChart" height="110"></canvas>
+    </section>
+
+    <div class="two-col">
+      <section id="explanations-box">
+        <h3>PILOT explanation</h3>
+        <ul id="explanations"></ul>
+        <h4>Operational findings</h4>
+        <ul id="findings"></ul>
+      </section>
+
+      <section id="evidence-box">
+        <h3>Root cause &amp; layers</h3>
+        <div id="rootcause"></div>
+        <h4>Layer 1 &mdash; invariants</h4>
+        <table id="invariants"><tbody></tbody></table>
+        <h4>Layer 2 &mdash; sensor trust</h4>
+        <table id="trust"><tbody></tbody></table>
+        <h4>Sigma rules matched</h4>
+        <ul id="sigma-rules"></ul>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <span>Utility physics from <a href="https://github.com/Critical-Infrastructure-Systems-Lab/DHALSIM" target="_blank" rel="noopener">DHALSIM</a> minitown (EPANET/WNTR), running as a separate service. PILOT validates its SCADA feed live.</span>
+  </footer>
+
+  <script src="/static/live.js"></script>
+</body>
+</html>

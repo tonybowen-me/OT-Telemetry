@@ -1,0 +1,6 @@
+# Runtime deps for the DHALSIM Water Utility service.
+# It STREAMS a pre-baked EPANET/WNTR trajectory (lab/data/trajectory.json), so no
+# simulator/scipy is needed at runtime -- it deploys on a free tier like PILOT.
+# Regenerating the trajectory (lab/build_trajectories.py) needs the dev deps.
+fastapi==0.139.2
+uvicorn[standard]==0.51.0

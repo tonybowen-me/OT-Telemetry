@@ -1,54 +1,80 @@
 # DEPLOYMENT
 
-The app is stateless and bundles its datasets, so it deploys on a free tier with
-no database and no simulator dependencies.
+The demo is **two** stateless services — the DHALSIM water utility and PILOT.
+Both bundle their data (the utility streams a pre-baked trajectory; PILOT bundles
+the recorded scenarios), so neither needs a database, a simulator, or Mininet/root
+at runtime. Both fit a free tier.
 
-## Render (free)
+## Render (free) — two services
 
-`render.yaml` (repo root of `pilot-poc`) defines a free Python web service:
+`render.yaml` (in `pilot-poc/`) defines both web services and wires PILOT's
+`LAB_URL` to the utility:
 
 ```yaml
 services:
   - type: web
-    name: pilot-dhalsim-demo
-    runtime: python
-    plan: free
-    rootDir: pilot-poc
-    buildCommand: pip install -r requirements.txt
+    name: dhalsim-water-utility
+    startCommand: uvicorn lab.service:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r lab/requirements.txt
+  - type: web
+    name: pilot-telemetry-integrity
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /healthz
+    buildCommand: pip install -r requirements.txt
+    envVars:
+      - key: LAB_URL
+        fromService: { type: web, name: dhalsim-water-utility, property: host }
 ```
 
 Steps:
 
 1. Push the repo to GitHub (already the case here).
-2. In Render: **New → Blueprint**, point it at the repo. Render reads `render.yaml`.
-3. Deploy. The health check hits `/healthz`; the UI is served at `/`.
+2. In Render: **New → Blueprint**, point it at the repo. Render reads `render.yaml`
+   and creates both services.
+3. Deploy. Each health check hits `/healthz`. Open the PILOT service URL for the
+   dashboard and the utility service URL for the HMI.
 
 Notes:
-- Only `requirements.txt` is installed on Render — `wntr`/`numpy` (the lab) are in
-  `requirements-dev.txt` and are **not** pulled in, keeping the build small.
-- Free instances sleep when idle; the first request after a sleep is slow. This is
-  fine for a demo.
-- `autoDeploy: false` — flip to `true` if you want push-to-deploy.
+- `LAB_URL` is injected from the utility's `host` (a bare hostname); PILOT prepends
+  `https://` automatically.
+- Free instances sleep when idle; the first request wakes them (slow), and the
+  utility's live clock restarts from zero. Fine for a demo.
+- The utility installs only `lab/requirements.txt` (fastapi/uvicorn) — `wntr`/`numpy`
+  live in `requirements-dev.txt` and are used only to *rebuild* the trajectory
+  offline, so neither deployed build pulls them in.
+- `autoDeploy: false` — flip to `true` for push-to-deploy.
 
-## Docker (local or any container host)
+## Docker Compose (local or any container host)
 
 ```bash
-docker build -t pilot-dhalsim pilot-poc
-docker run -p 8000:8000 pilot-dhalsim
-# http://localhost:8000
+cd pilot-poc
+docker compose up --build
+# utility -> http://localhost:8001 , pilot -> http://localhost:8002
 ```
 
-The image installs only runtime deps and copies `app/` + `datasets/`. It honours
-`$PORT` if the host sets one (defaults to 8000).
+Both services build from the same `Dockerfile`; Compose overrides the command per
+service and sets `LAB_URL=http://utility:8001` for PILOT.
 
 ## Endpoints
 
+### DHALSIM Water Utility (app 1)
+
 | path | purpose |
 |---|---|
-| `/` | dashboard |
-| `/api/scenarios` | list scenarios |
-| `/api/scenario/{id}` | full evaluation (PILOT + Sigma) |
-| `/api/scenario/{id}/meta` | scenario metadata |
+| `/` | operator HMI + attacker console |
+| `/api/scada?window=N` | SCADA-visible feed (post-attack) — all PILOT consumes |
+| `/api/truth?window=N` | physical ground truth (HMI overlay only) |
+| `/api/status` | current condition / armed attack / clock |
+| `POST /api/condition/{normal\|surge}` | set the physical demand condition |
+| `POST /api/attack/{none\|concealment_mitm\|dos}` | arm/clear an attack |
+| `/healthz` | health check |
+
+### PILOT (app 2)
+
+| path | purpose |
+|---|---|
+| `/` | live dashboard (validates the utility's SCADA feed) |
+| `/api/live` | live PILOT + Sigma evaluation of the current SCADA window |
+| `/api/lab-status` | utility connection + current state |
+| `/recorded` | offline dashboard over the four recorded scenarios |
+| `/api/scenarios`, `/api/scenario/{id}` | recorded-scenario list + evaluation |
 | `/healthz` | health check |

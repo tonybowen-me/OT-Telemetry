@@ -91,9 +91,9 @@ def _comparison(status: PilotStatus, sig, meta) -> str:
     return f"PILOT: {status}. Correlational baseline {sig_txt}."
 
 
-def _evidence(scenario: Scenario, l1) -> dict:
-    rep = scenario.reported
-    gt = scenario.ground_truth
+def _evidence(reported: list[Frame], ground_truth: list[Frame], l1) -> dict:
+    rep = reported
+    gt = ground_truth
     def series(frames, attr):
         return [getattr(f, attr) for f in frames]
     mb = next((r for r in l1.invariants if r.rule_id == "TANK_MASS_BALANCE"), None)
@@ -110,27 +110,54 @@ def _evidence(scenario: Scenario, l1) -> dict:
     }
 
 
-def evaluate_scenario(scenario: Scenario) -> EvaluationResult:
-    frames = scenario.reported
-    l1 = layer1.evaluate(frames)
-    l2 = layer2.evaluate(frames)
-    l3 = layer3.evaluate(frames, l1, l2)
-    sig = sigma.evaluate(frames)
+def _live_class(status: PilotStatus, findings: list[str]) -> str:
+    if status == "violation":
+        return "falsified_telemetry"
+    if status == "uncertain":
+        return "incomplete_data"
+    if findings:
+        return "operational_issue"
+    return "valid"
+
+
+def evaluate_frames(
+    reported: list[Frame],
+    ground_truth: list[Frame],
+    scenario_id: str,
+    scenario_name: str,
+    scenario_class: str | None = None,
+) -> EvaluationResult:
+    """Run PILOT (L1-L3) + Sigma over an arbitrary reported/actual frame pair.
+
+    Shared by the recorded-scenario endpoint and the live SCADA feed. Only
+    ``reported`` reaches the engines; ``ground_truth`` is evidence/plotting only.
+    """
+    l1 = layer1.evaluate(reported)
+    l2 = layer2.evaluate(reported)
+    l3 = layer3.evaluate(reported, l1, l2)
+    sig = sigma.evaluate(reported)
 
     status = _VERDICT_TO_STATUS[l1.verdict]
-    findings = _operational_findings(frames)
-    explanations = _explanations(status, l1, l3, findings, sig, scenario.meta)
-    comparison = _comparison(status, sig, scenario.meta)
+    findings = _operational_findings(reported)
+    explanations = _explanations(status, l1, l3, findings, sig, None)
+    comparison = _comparison(status, sig, None)
 
     return EvaluationResult(
-        scenario_id=scenario.meta.id,
-        scenario_name=scenario.meta.name,
-        scenario_class=scenario.meta.scenario_class,
+        scenario_id=scenario_id,
+        scenario_name=scenario_name,
+        scenario_class=scenario_class or _live_class(status, findings),
         pilot_status=status,
         operational_findings=findings,
         layer1=l1, layer2=l2, layer3=l3, sigma=sig,
         explanations=explanations,
-        evidence=_evidence(scenario, l1),
+        evidence=_evidence(reported, ground_truth, l1),
         comparison=comparison,
-        timesteps=len(frames),
+        timesteps=len(reported),
+    )
+
+
+def evaluate_scenario(scenario: Scenario) -> EvaluationResult:
+    return evaluate_frames(
+        scenario.reported, scenario.ground_truth,
+        scenario.meta.id, scenario.meta.name, scenario.meta.scenario_class,
     )

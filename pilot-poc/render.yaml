@@ -1,8 +1,29 @@
-# Free-tier Render deployment. The service is stateless: it serves pre-recorded
-# DHALSIM datasets bundled in the repo and runs no simulator at runtime.
+# Free-tier Render deployment of the TWO separate apps.
+#
+#   1. dhalsim-water-utility : the OT lab. Streams the pre-baked DHALSIM minitown
+#      physics live and exposes a SCADA feed + operator/attacker HMI.
+#   2. pilot-telemetry-integrity : PILOT. A separate service that validates the
+#      utility's SCADA feed live (LAB_URL points at the utility).
+#
+# Both are stateless and run no simulator at runtime, so both fit the free tier.
+# Note: free services cold-start after idling; the first request wakes them and
+# the utility's live clock restarts from zero (fine for a demo).
 services:
   - type: web
-    name: pilot-dhalsim-demo
+    name: dhalsim-water-utility
+    runtime: python
+    plan: free
+    rootDir: pilot-poc
+    buildCommand: pip install -r lab/requirements.txt
+    startCommand: uvicorn lab.service:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+  - type: web
+    name: pilot-telemetry-integrity
     runtime: python
     plan: free
     rootDir: pilot-poc
@@ -13,3 +34,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
+      - key: LAB_URL
+        fromService:
+          type: web
+          name: dhalsim-water-utility
+          property: host
